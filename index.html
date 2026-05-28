@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>কুরবানির মাংস বন্টন ও হিসাব টুল</title>
+    <style>
+        :root {
+            --bg-color: #1a1a1a;
+            --card-bg: #2d2d2d;
+            --text-color: #ffffff;
+            --text-muted: #aaaaaa;
+            --primary: #4caf50;
+            --primary-hover: #45a049;
+            --danger: #ef5350;
+            --danger-hover: #d32f2f;
+            --border-color: #444444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 600px;
+            background: var(--card-bg);
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 24px;
+            margin-bottom: 20px;
+            color: var(--primary);
+        }
+
+        .share-section {
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            border: 1px solid var(--border-color);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            font-size: 15px;
+        }
+
+        input[type="number"], input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            background: #111;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: #fff;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input[type="number"]:focus, input[type="text"]:focus {
+            border-color: var(--primary);
+        }
+
+        .category-list {
+            margin-bottom: 20px;
+        }
+
+        .category-item {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 12px;
+            position: relative;
+        }
+
+        .category-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .category-name {
+            font-weight: bold;
+            font-size: 16px;
+            color: #ddd;
+        }
+
+        .btn-delete {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .btn-delete:hover {
+            color: var(--danger-hover);
+            text-decoration: underline;
+        }
+
+        .inputs-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .input-group {
+            flex: 1;
+        }
+
+        .result-box {
+            flex: 1;
+            background: rgba(76, 175, 80, 0.1);
+            border: 1px dashed var(--primary);
+            padding: 10px;
+            border-radius: 6px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .result-value {
+            display: block;
+            font-size: 18px;
+            font-weight: bold;
+            color: var(--primary);
+            margin-top: 2px;
+        }
+
+        .add-section {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .btn-add {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 0 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            white-space: nowrap;
+        }
+
+        .btn-add:hover {
+            background: var(--primary-hover);
+        }
+
+        @media (max-width: 480px) {
+            .inputs-row {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .result-box {
+                margin-top: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>কুরবানির মাংস হিসাব টুলস</h1>
+    
+    <div class="share-section">
+        <label for="total-shares">মোট ভাগের সংখ্যা (কুরবানির অংশীদার):</label>
+        <input type="number" id="total-shares" value="7" min="1" oninput="calculateAll()">
+    </div>
+
+    <div id="category-container" class="category-list">
+        </div>
+
+    <div class="add-section">
+        <input type="text" id="new-category-name" placeholder="নতুন ক্যাটাগরির নাম (যেমন: মগজ)">
+        <button class="btn-add" onclick="addCategory()">+ যোগ করুন</button>
+    </div>
+</div>
+
+<script>
+    // ডিফল্ট ক্যাটাগরি লিস্ট
+    let categories = [
+        { id: 1, name: 'মাংস' },
+        { id: 2, name: 'হাড্ডি' },
+        { id: 3, name: 'তেল' },
+        { id: 4, name: 'কলিজা' }
+    ];
+
+    let categoryIdCounter = 5;
+
+    // ক্যাটাগরিগুলো স্ক্রিনে দেখানোর ফাংশন
+    function renderCategories() {
+        const container = document.getElementById('category-container');
+        container.innerHTML = '';
+
+        categories.forEach(cat => {
+            const item = document.createElement('div');
+            item.className = 'category-item';
+            item.id = `cat-item-${cat.id}`;
+            
+            item.innerHTML = `
+                <div class="category-header">
+                    <span class="category-name">${cat.name}</span>
+                    <button class="btn-delete" onclick="deleteCategory(${cat.id})">মুছে ফেলুন</button>
+                </div>
+                <div class="inputs-row">
+                    <div class="input-group">
+                        <input type="number" class="total-weight-input" data-id="${cat.id}" placeholder="মোট ওজন (কেজি)" step="any" oninput="calculateSingle(${cat.id})">
+                    </div>
+                    <div class="result-box">
+                        প্রতি ভাগে পাবে:
+                        <span class="result-value" id="result-${cat.id}">০.০০ কেজি</span>
+                    </div>
+                </div>
+            `;
+            container.appendChild(item);
+        });
+    }
+
+    // নির্দিষ্ট একটি ক্যাটাগরির হিসাব করার ফাংশন
+    function calculateSingle(id) {
+        const sharesInput = document.getElementById('total-shares').value;
+        const totalShares = parseFloat(sharesInput) || 0;
+        
+        const weightInput = document.querySelector(`.total-weight-input[data-id="${id}"]`).value;
+        const totalWeight = parseFloat(weightInput) || 0;
+        
+        const resultSpan = document.getElementById(`result-${id}`);
+
+        if (totalShares > 0 && totalWeight > 0) {
+            const shareWeight = totalWeight / totalShares;
+            // দশমিকের পর ২ ঘর পর্যন্ত দেখাবে
+            resultSpan.innerText = shareWeight.toFixed(2) + ' কেজি';
+        } else {
+            resultSpan.innerText = '০.০০ কেজি';
+        }
+    }
+
+    // ভাগের সংখ্যা পরিবর্তন হলে সব ক্যাটাগরি একসাথে হিসাব করার ফাংশন
+    function calculateAll() {
+        categories.forEach(cat => {
+            calculateSingle(cat.id);
+        });
+    }
+
+    // নতুন ক্যাটাগরি যোগ করার ফাংশন
+    function addCategory() {
+        const nameInput = document.getElementById('new-category-name');
+        const name = nameInput.value.trim();
+
+        if (name === '') {
+            alert('অনুগ্রহ করে ক্যাটাগরির একটি নাম দিন!');
+            return;
+        }
+
+        categories.push({ id: categoryIdCounter, name: name });
+        categoryIdCounter++;
+        
+        renderCategories();
+        calculateAll(); // আগের ইনপুট করা ডাটাগুলোর হিসাব ঠিক রাখার জন্য
+        
+        nameInput.value = ''; // ইনপুট বক্স খালি করার জন্য
+    }
+
+    // ক্যাটাগরি মুছে ফেলার ফাংশন
+    function deleteCategory(id) {
+        categories = categories.filter(cat => cat.id !== id);
+        renderCategories();
+        calculateAll();
+    }
+
+    // প্রথমবার পেজ লোড হলে ডিফল্ট ক্যাটাগরিগুলো দেখানোর জন্য
+    renderCategories();
+</script>
+
+</body>
+</html>
