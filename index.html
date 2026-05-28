@@ -15,6 +15,8 @@
             --danger: #ef5350;
             --danger-hover: #d32f2f;
             --border-color: #444444;
+            --warning: #ff9800;
+            --warning-hover: #f57c00;
         }
 
         * {
@@ -171,6 +173,28 @@
             background: var(--primary-hover);
         }
 
+        .action-section {
+            margin-top: 20px;
+            display: flex;
+            justify-content: flex-end;
+        }
+
+        .btn-reset {
+            background: var(--warning);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        .btn-reset:hover {
+            background: var(--warning-hover);
+        }
+
         @media (max-width: 480px) {
             .inputs-row {
                 flex-direction: column;
@@ -189,7 +213,7 @@
     
     <div class="share-section">
         <label for="total-shares">মোট ভাগের সংখ্যা (কুরবানির অংশীদার):</label>
-        <input type="number" id="total-shares" value="7" min="1" oninput="calculateAll()">
+        <input type="number" id="total-shares" value="7" min="1" oninput="saveAndCalculate()">
     </div>
 
     <div id="category-container" class="category-list">
@@ -199,20 +223,71 @@
         <input type="text" id="new-category-name" placeholder="নতুন ক্যাটাগরির নাম (যেমন: মগজ)">
         <button class="btn-add" onclick="addCategory()">+ যোগ করুন</button>
     </div>
+
+    <div class="action-section">
+        <button class="btn-reset" onclick="resetAllData()">সব রিসেট করুন</button>
+    </div>
 </div>
 
 <script>
-    // ডিফল্ট ক্যাটাগরি লিস্ট
-    let categories = [
-        { id: 1, name: 'মাংস' },
-        { id: 2, name: 'হাড্ডি' },
-        { id: 3, name: 'তেল' },
-        { id: 4, name: 'কলিজা' }
+    // ডিফল্ট ক্যাটাগরি স্ট্রাকচার
+    const defaultCategories = [
+        { id: 1, name: 'মাংস', weight: '' },
+        { id: 2, name: 'হাড্ডি', weight: '' },
+        { id: 3, name: 'তেল', weight: '' },
+        { id: 4, name: 'কলিজা', weight: '' }
     ];
 
+    let categories = [];
     let categoryIdCounter = 5;
 
-    // ক্যাটাগরিগুলো স্ক্রিনে দেখানোর ফাংশন
+    // LocalStorage থেকে ডেটা লোড করার ফাংশন
+    function loadData() {
+        const savedCategories = localStorage.getItem('meat_categories');
+        const savedShares = localStorage.getItem('meat_shares');
+        const savedCounter = localStorage.getItem('meat_counter');
+
+        if (savedCategories) {
+            categories = JSON.parse(savedCategories);
+        } else {
+            categories = JSON.parse(JSON.stringify(defaultCategories));
+        }
+
+        if (savedShares) {
+            document.getElementById('total-shares').value = savedShares;
+        } else {
+            document.getElementById('total-shares').value = "7";
+        }
+
+        if (savedCounter) {
+            categoryIdCounter = parseInt(savedCounter);
+        } else {
+            categoryIdCounter = 5;
+        }
+    }
+
+    // ডেটা LocalStorage-এ সেভ এবং ক্যালকুলেট করার ফাংশন
+    function saveAndCalculate() {
+        // ইনপুট করা ওজনগুলো অবজেক্টে আপডেট করা
+        categories.forEach(cat => {
+            const input = document.querySelector(`.total-weight-input[data-id="${cat.id}"]`);
+            if (input) {
+                cat.weight = input.value;
+            }
+        });
+
+        const sharesValue = document.getElementById('total-shares').value;
+
+        // লোকাল স্টোরেজে সেভ
+        localStorage.setItem('meat_categories', JSON.stringify(categories));
+        localStorage.setItem('meat_shares', sharesValue);
+        localStorage.setItem('meat_counter', categoryIdCounter.toString());
+
+        // হিসাব করা
+        calculateAll();
+    }
+
+    // স্ক্রিনে ক্যাটাগরিগুলো দেখানোর ফাংশন
     function renderCategories() {
         const container = document.getElementById('category-container');
         container.innerHTML = '';
@@ -229,7 +304,7 @@
                 </div>
                 <div class="inputs-row">
                     <div class="input-group">
-                        <input type="number" class="total-weight-input" data-id="${cat.id}" placeholder="মোট ওজন (কেজি)" step="any" oninput="calculateSingle(${cat.id})">
+                        <input type="number" class="total-weight-input" data-id="${cat.id}" placeholder="মোট ওজন (কেজি)" step="any" value="${cat.weight || ''}" oninput="saveAndCalculate()">
                     </div>
                     <div class="result-box">
                         প্রতি ভাগে পাবে:
@@ -241,7 +316,7 @@
         });
     }
 
-    // নির্দিষ্ট একটি ক্যাটাগরির হিসাব করার ফাংশন
+    // নির্দিষ্ট একটি ক্যাটাগরির হিসাব
     function calculateSingle(id) {
         const sharesInput = document.getElementById('total-shares').value;
         const totalShares = parseFloat(sharesInput) || 0;
@@ -253,21 +328,20 @@
 
         if (totalShares > 0 && totalWeight > 0) {
             const shareWeight = totalWeight / totalShares;
-            // দশমিকের পর ২ ঘর পর্যন্ত দেখাবে
             resultSpan.innerText = shareWeight.toFixed(2) + ' কেজি';
         } else {
             resultSpan.innerText = '০.০০ কেজি';
         }
     }
 
-    // ভাগের সংখ্যা পরিবর্তন হলে সব ক্যাটাগরি একসাথে হিসাব করার ফাংশন
+    // সব ক্যাটাগরি একসাথে হিসাব
     function calculateAll() {
         categories.forEach(cat => {
             calculateSingle(cat.id);
         });
     }
 
-    // নতুন ক্যাটাগরি যোগ করার ফাংশন
+    // নতুন ক্যাটাগরি যোগ করা
     function addCategory() {
         const nameInput = document.getElementById('new-category-name');
         const name = nameInput.value.trim();
@@ -277,24 +351,48 @@
             return;
         }
 
-        categories.push({ id: categoryIdCounter, name: name });
+        // প্রথমে কারেন্ট ইনপুট করা ডেটাগুলো অবজেক্টে সেভ করে নিচ্ছি
+        categories.forEach(cat => {
+            const input = document.querySelector(`.total-weight-input[data-id="${cat.id}"]`);
+            if (input) cat.weight = input.value;
+        });
+
+        categories.push({ id: categoryIdCounter, name: name, weight: '' });
         categoryIdCounter++;
         
         renderCategories();
-        calculateAll(); // আগের ইনপুট করা ডাটাগুলোর হিসাব ঠিক রাখার জন্য
+        saveAndCalculate();
         
-        nameInput.value = ''; // ইনপুট বক্স খালি করার জন্য
+        nameInput.value = '';
     }
 
-    // ক্যাটাগরি মুছে ফেলার ফাংশন
+    // ক্যাটাগরি মুছে ফেলা
     function deleteCategory(id) {
+        // বাকিগুলোর ডাটা আপডেট করে নেওয়া
+        categories.forEach(cat => {
+            const input = document.querySelector(`.total-weight-input[data-id="${cat.id}"]`);
+            if (input) cat.weight = input.value;
+        });
+
         categories = categories.filter(cat => cat.id !== id);
         renderCategories();
-        calculateAll();
+        saveAndCalculate();
     }
 
-    // প্রথমবার পেজ লোড হলে ডিফল্ট ক্যাটাগরিগুলো দেখানোর জন্য
+    // সম্পূর্ণ ডাটা রিসেট করার ফাংশন
+    function resetAllData() {
+        if (confirm('আপনি কি নিশ্চিত যে সমস্ত ডেটা মুছে ফেলে রিসেট করতে চান?')) {
+            localStorage.clear();
+            loadData();
+            renderCategories();
+            calculateAll();
+        }
+    }
+
+    // অ্যাপ রান করার প্রাথমিক ধাপ
+    loadData();
     renderCategories();
+    calculateAll();
 </script>
 
 </body>
